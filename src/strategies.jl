@@ -1,11 +1,8 @@
-module Strategies
+
 
 export
 	AbstractStrategy,
-	Strategy
-
-using SuckerSim.States
-
+	RandomChoiceStrategy
 
 """
 	AbstractStrategy
@@ -13,9 +10,7 @@ Representation of attacking strategy
 """
 abstract type AbstractStrategy end
 
-struct Strategy <: AbstractStrategy
-	current_state::AbstractTurnState
-end
+struct RandomChoiceStrategy <: AbstractStrategy end
 
 # """
 # 	AbstractPunchStrategy
@@ -26,5 +21,3 @@ end
 # 	AbstractPuncheeStrategy
 # """
 # abstract type AbstractPuncheeStrategy end
-
-end

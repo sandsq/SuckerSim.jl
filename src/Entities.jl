@@ -1,20 +1,16 @@
 module Entities
 export 
 	AbstractEntity,
-	Entity,
-	AbstractAction,
-	Action,
-	describe
+	Entity
 
 import SuckerSim: ValidMoves
-using SuckerSim.Strategies
+
 
 """
 	AbstractEntity
 Representation of the agent
 """
 abstract type AbstractEntity end
-
 
 struct Entity <: AbstractEntity
 	name::String
@@ -24,28 +20,12 @@ function Base.show(io::IO, e::Entity)
 end
 
 
-abstract type AbstractAction end
-
-struct Action <: AbstractAction 
-	source::AbstractEntity
-	target::AbstractEntity
-	move::ValidMoves
-end
-function describe(a::Action)
-	return "$(a.source) used $(a.move) on $(a.target)"
-end
 
 
-# """
-# 	AbstractPuncher
-# Representation of the agent using Sucker Punch
-# """
-# abstract type AbstractPuncher <: AbstractEntity end
 
-# """
-# 	AbstractPunchee
-# Representation of the agent trying to play around Sucker Punch
-# """
-# abstract type AbstractPunchee <: AbstractEntity end
+
+include("states.jl")
+include("strategies.jl")
+
 
 end
