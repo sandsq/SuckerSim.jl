@@ -32,7 +32,8 @@ end
 
     a3 = Action(source, target, regular_attack)
     t2 = TurnState([a1, a3])
-    b = BattleState([t2, t])
+    b = BattleState(target, source, [t2, t])
     @test b.turns[1] == t2
     @test b.turns[2] == t
+    check_victory(b)
 end
