@@ -1,10 +1,9 @@
 module Entities
+
+using SuckerSim
 export 
 	AbstractEntity,
 	Entity
-
-import SuckerSim: ValidMoves
-
 
 """
 	AbstractEntity
@@ -14,9 +13,10 @@ abstract type AbstractEntity end
 
 struct Entity <: AbstractEntity
 	name::String
+	speed::Float64
 end
 function Base.show(io::IO, e::Entity)
-	print(io, e.name)
+	print(io, "[$(e.name), $(e.speed) speed]")
 end
 
 

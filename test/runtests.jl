@@ -1,25 +1,25 @@
 using SuckerSim
 using SuckerSim.Entities
-import SuckerSim: ValidMoves
 using Test
 
-source = Entity("Kingambit")
-target = Entity("Kyurem")
+source = Entity("Kingambit", 50)
+target = Entity("Kyurem", 95)
 
 @testset "Move order" begin
-    @test non_attack < regular_attack 
-    @test non_attack < preemptive_attack 
-    @test regular_attack < preemptive_attack
+    @test status_move > preemptive_attack
+    @test regular_attack > preemptive_attack
 end
 
 @testset "Actions" begin
-    move = preemptive_attack
-    a = Action(source, target, move)
+    a = Action(source, target, preemptive_attack)
     @test a == Action(source, target, preemptive_attack)
-    @test describe(a) == "Kingambit used preemptive_attack on Kyurem"
+    @test describe(a) == "[Kingambit, 50.0 speed] used PreemptiveAttack() on [Kyurem, 95.0 speed]"
     
-    a2 = Action(target, source, non_attack)
-    @test a2 < a
+    a2 = Action(target, source, status_move)
+    @test a < a2
+
+    a3 = Action(source, target, regular_attack)
+    @test a2 < a3
 end
 
 
@@ -27,13 +27,13 @@ end
     a1 = Action(target, source, regular_attack)
     a2 = Action(source, target, preemptive_attack)
     t = TurnState([a1, a2])
-    @test t.actions[1] == a2
-    @test t.actions[2] == a1
+    @test t.first_action == a2
+    @test t.second_action == a1
 
     a3 = Action(source, target, regular_attack)
     t2 = TurnState([a1, a3])
     b = BattleState(target, source, [t2, t])
     @test b.turns[1] == t2
     @test b.turns[2] == t
-    check_victory(b)
+    @test (source, 1) == get_victor(b)
 end

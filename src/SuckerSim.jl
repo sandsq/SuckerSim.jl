@@ -1,32 +1,31 @@
 module SuckerSim
 
-@enum ValidMoves begin
-	non_attack
-	regular_attack
-	preemptive_attack
-end
-# higher number (like prio bracket) attack happens first
+abstract type AbstractMove end
+struct StatusMove <: AbstractMove end
+status_move = StatusMove()
+struct RegularAttack <: AbstractMove end
+regular_attack = RegularAttack()
+struct PreemptiveAttack <: AbstractMove end
+preemptive_attack = PreemptiveAttack()
 
-# function Base.isless(v1::ValidMoves, v2::ValidMoves)
-# 	# non_attack < regular_attack < preemptive_attack
-# 	if v1 == v2
-# 		return false
-# 	end
-# 	if v1 == non_attack
-# 		return true
-# 	end
-# 	if v1 == regular_attack
-# 		if v2 == non_attack
-# 			return false
-# 		end
-# 		return true
-# 	end
-# 	return false
-# end
+# higher prio attack happens first which means high prio attack is "less than" regular
+function Base.isless(m1::T, m2::S) where {T <: AbstractMove, S <: AbstractMove}
+	if m1 == status_move && m2 == preemptive_attack
+		return false
+	elseif m1 == regular_attack && m2 == preemptive_attack
+		return false
+	end
+	true
+end
+
 export
-	preemptive_attack,
+	AbstractMove,
+	StatusMove,
+	status_move,
+	RegularAttack,
 	regular_attack,
-	non_attack
+	PreemptiveAttack,
+	preemptive_attack
 # function Base.show(io::IO, m::ValidMoves)
 # 	print(io, )
 
