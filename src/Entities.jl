@@ -19,13 +19,7 @@ function Base.show(io::IO, e::Entity)
 	print(io, "[$(e.name), $(e.speed) speed]")
 end
 
-
-
-
-
-
 include("states.jl")
 include("strategies.jl")
-
 
 end

@@ -1,5 +1,4 @@
 
-
 export
 	AbstractAction,
 	Action,
@@ -20,8 +19,12 @@ struct Action <: AbstractAction
 	target::AbstractEntity
 	move::AbstractMove
 end
+# Higher speed goes first, but higher number appears later in sort. Implement isless "correctly" and reverse sort
 function Base.isless(a1::AbstractAction, a2::AbstractAction)
-	Base.isless(a1.move, a2.move)
+	if Base.isless(a1.move, a2.move)
+		return true
+	end
+	return Base.isless(a1.source.speed, a2.source.speed)
 end
 function describe(a::AbstractAction)
 	"$(a.source) used $(a.move) on $(a.target)"
@@ -46,8 +49,9 @@ struct TurnState{T <: AbstractAction} <: AbstractTurnState
 			throw(DimensionMismatch("Number of actions in turn $(length(a)) does not match number of allowed actions (2)."))
 		end
 		# order turn by entity speed and move prio
-		sort!(a, by = x -> x.source.speed, rev=true)
-		sort!(a, by = x -> x.move)
+		# speed and move prio are higher number later, but we want them to "happen" first, i.e., be earlier, so reverse sort
+		sort!(a, rev=true)
+		@debug "$(a) is order after sorting"
 		new{T}(a[1], a[2])
 	end
 	function TurnState(a1::AbstractAction, a2::AbstractAction)
@@ -82,21 +86,29 @@ end
 Return the victor and the turn of the victory
 """
 function get_victor(b::AbstractBattleState)
-	# last_turn = last(b.turns)
-	# if is_preemptive_successful(last_turn)
-	# 	return last_turn.first_action.source, length(b.turns)
-	# end
+	victor_tracker = (nothing, -1)
+	preemptive_exchange_winner = Entity("", -1)
+	preemptive_counter = MAX_USES
+
 	for (tind, turn) in enumerate(b.turns)
 		if turn.first_action.move == regular_attack
-			return turn.first_action.source, tind
+			return (turn.first_action.source, tind)
 		elseif turn.first_action.move == status_move && 
 			turn.second_action.move == regular_attack
-			return turn.section_action_source, tind
+			return (turn.second_action.source, tind)
 		elseif is_preemptive_successful(turn)
 			return turn.first_action.source, tind
+		elseif turn.first_action.move == preemptive_attack &&
+			turn.second_action.move == status_move
+			preemptive_counter -= 1
+			preemptive_exchange_winner = turn.first_action.target
+		end
+
+		if preemptive_counter == 0
+			return (preemptive_exchange_winner, tind)
 		end
 	end
-	nothing, -1
+	victor_tracker
 end
 
 
