@@ -2,6 +2,7 @@ using SuckerSim
 using SuckerSim.Entities
 using Test
 using Logging
+using Random
 debuglogger = ConsoleLogger(stderr, Logging.Debug)
 Base.global_logger(debuglogger)
 
@@ -129,5 +130,38 @@ end
             @test get_victor(b) == (kyurem, 7)
         end
     end
-    
+end
+
+@testset "strategies" begin
+    @testset "random strategy" begin
+        strat = RandomChoiceStrategy()
+        b = BattleState(kingambit, kyurem, [])
+        preemptive_counter = 0
+        regular_counter = 0
+        total_trials = 1000
+        for i in 1:total_trials
+            a = pick_action(strat, b, kingambit, [preemptive_attack, regular_attack])
+            if a == Action(kingambit, kyurem, preemptive_attack)
+                preemptive_counter += 1
+            else
+                regular_counter += 1
+            end
+        end
+        @test 0.9 * total_trials / 2 <= preemptive_counter <= 1.1 * total_trials / 2
+        @test 0.9 * total_trials / 2 <= regular_counter <= 1.1 * total_trials / 2
+        @test preemptive_counter + regular_counter == total_trials
+    end
+
+    @testset "full send strats" begin
+        pstrat = SendPreemptiveStrategy()
+        b = BattleState(kingambit, kyurem, [])
+        @test pick_action(pstrat, b, kingambit, [preemptive_attack]) == Action(kingambit, kyurem, preemptive_attack)
+
+        rstrat = SendRegularStrategy()
+        @test pick_action(rstrat, b, kyurem, [regular_attack]) == Action(kyurem, kingambit, regular_attack)
+
+        sstrat = SendStatusStrategy()
+        @test pick_action(sstrat, b, kyurem, [status_move]) == Action(kyurem, kingambit, status_move)
+    end
+
 end
