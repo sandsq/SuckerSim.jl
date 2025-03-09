@@ -1,5 +1,5 @@
 using Random
-DEFAULT_RNG = Xoshiro(6)
+const DEFAULT_RNG = Xoshiro(6)
 export
 	AbstractStrategy,
 	RandomChoiceStrategy,
@@ -7,7 +7,13 @@ export
 	AbstractSendStrategy,
 	SendPreemptiveStrategy,
 	SendRegularStrategy,
-	SendStatusStrategy
+	SendStatusStrategy,
+	AbstractTacticalPreemptiveStrategy,
+	PreemptiveLessStrategy,
+	PreemptiveMoreStrategy,
+	AbstractTacticalStatusStrategy,
+	StatusLessStrategy,
+	StatusMoreStrategy
 
 
 function identify_defender(battle_state::AbstractBattleState, attacker::AbstractEntity)
@@ -72,3 +78,71 @@ function pick_action(strat::S,
 	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractSendStrategy}
 	pick_action(DEFAULT_RNG, strat, battle_state, attacker, moves)
 end
+
+
+function _count_preemptive_uses(b::BattleState)
+	c = 0
+	for turn in b.turns
+		if turn.first_action.move == preemptive_attack || turn.second_action.move == preemptive_attack
+			c += 1
+		end
+	end
+	c
+end
+
+abstract type AbstractTacticalPreemptiveStrategy <: AbstractStrategy end
+"""
+	PreemptiveLessStrategy
+The lower the PP of the preemptive attack, the less likely it will be used
+"""
+struct PreemptiveLessStrategy <: AbstractTacticalPreemptiveStrategy end
+"""
+	PreemptiveMoreStrategy
+The lower the PP of the preemptive attack, the more likely it will be used
+"""
+struct PreemptiveMoreStrategy <: AbstractTacticalPreemptiveStrategy end
+
+function pick_action(rng:: AbstractRNG, strat::S, 
+	battle_state::AbstractBattleState, attacker::AbstractEntity, 
+	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractTacticalPreemptiveStrategy}
+	defender = identify_defender(battle_state, attacker)
+	# MAX_USES
+	uses_remaining = MAX_USES - _count_preemptive_uses(battle_state)
+	random_roll = rand(1:MAX_USES)
+	if typeof(strat) == PreemptiveLessStrategy
+		if random_roll <= uses_remaining
+			Action(attacker, defender, preemptive_attack)
+		else
+			Action(attacker, defender, regular_attack)
+		end
+	elseif typeof(strat) == PreemptiveMoreStrategy
+		if random_roll >= uses_remaining
+			Action(attacker, defender, preemptive_attack)
+		else
+			Action(attacker, defender, regular_attack)
+		end
+	else
+		throw(ErrorException("$(typeof(strat)) is not a valid preemptive tactical strat"))
+	end
+	
+end
+
+function pick_action(strat::S, 
+	battle_state::AbstractBattleState, attacker::AbstractEntity, 
+	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractTacticalPreemptiveStrategy}
+	pick_action(DEFAULT_RNG, strat, battle_state, attacker, moves)
+end
+
+
+
+abstract type AbstractTacticalStatusStrategy <: AbstractStrategy end
+"""
+	StatusLessStrategy
+The lower the PP of the opponent's preemptive attack, the less likely a status move will be used
+"""
+struct StatusLessStrategy <: AbstractTacticalStatusStrategy end
+"""
+	StatusMoreStrategy
+The lower the PP of the opponent's preemptive attack, the more likely a status move will be used
+"""
+struct StatusMoreStrategy <: AbstractTacticalStatusStrategy end

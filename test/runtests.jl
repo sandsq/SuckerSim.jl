@@ -94,12 +94,13 @@ end
             @test get_victor(b) == (nothing, -1)
         end
 
-        @testset "preemptive vs successful status pp stall" begin
+        @testset "preemptive vs successful status pp stall, preemptive attack counter function" begin
             a1 = Action(kingambit, kyurem, preemptive_attack)
             a2 = Action(kyurem, kingambit, status_move)
             t = TurnState([a2, a1])
             b = BattleState(kingambit, kyurem, [t for i in 1:8])
             @test get_victor(b) == (kyurem, 8)
+            @test SuckerSim.Entities._count_preemptive_uses(b) == 8
         end
 
         @testset "failed status pp stall" begin
@@ -136,20 +137,21 @@ end
     @testset "random strategy" begin
         strat = RandomChoiceStrategy()
         b = BattleState(kingambit, kyurem, [])
-        preemptive_counter = 0
-        regular_counter = 0
+        pre_count = 0
+        reg_count = 0
         total_trials = 1000
         for i in 1:total_trials
             a = pick_action(strat, b, kingambit, [preemptive_attack, regular_attack])
             if a == Action(kingambit, kyurem, preemptive_attack)
-                preemptive_counter += 1
+                pre_count += 1
             else
-                regular_counter += 1
+                reg_count += 1
             end
         end
-        @test 0.9 * total_trials / 2 <= preemptive_counter <= 1.1 * total_trials / 2
-        @test 0.9 * total_trials / 2 <= regular_counter <= 1.1 * total_trials / 2
-        @test preemptive_counter + regular_counter == total_trials
+        # since result depends on rng, just use a big enough sample size and check if it is an expected range
+        @test 0.9 * total_trials / 2 <= pre_count <= 1.1 * total_trials / 2
+        @test 0.9 * total_trials / 2 <= reg_count <= 1.1 * total_trials / 2
+        @test pre_count + reg_count == total_trials
     end
 
     @testset "full send strats" begin
@@ -162,6 +164,25 @@ end
 
         sstrat = SendStatusStrategy()
         @test pick_action(sstrat, b, kyurem, [status_move]) == Action(kyurem, kingambit, status_move)
+    end
+
+    @testset "preemptive attack depending on PP remaining" begin
+        
+        lstrat = PreemptiveLessStrategy()
+        a1 = Action(kingambit, kyurem, preemptive_attack)
+        a2 = Action(kyurem, kingambit, status_move)
+        t = TurnState([a1, a2])
+        b = BattleState(kingambit, kyurem, [t for i in 1:7])
+        total_trials = 1000
+        c = 0
+        for i in 1:total_trials
+            option_picked = pick_action(lstrat, b, kingambit, [preemptive_attack])
+            if option_picked == Action(kingambit, kyurem, preemptive_attack)
+                c += 1
+            end
+        end
+        @test 0.9 / 8 * total_trials <= c <= 1.1 / 8 * total_trials
+	    # PreemptiveMoreStrategy
     end
 
 end
