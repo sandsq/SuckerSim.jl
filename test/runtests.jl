@@ -173,7 +173,7 @@ end
         a2 = Action(kyurem, kingambit, status_move)
         t = TurnState([a1, a2])
         b = BattleState(kingambit, kyurem, [t for i in 1:7])
-        total_trials = 1000
+        total_trials = 10000
         c = 0
         for i in 1:total_trials
             option_picked = pick_action(lstrat, b, kingambit, [preemptive_attack])
