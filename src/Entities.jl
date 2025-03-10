@@ -14,6 +14,7 @@ abstract type AbstractEntity end
 struct Entity <: AbstractEntity
 	name::String
 	speed::Float64
+	# if extending, have Entity hold valid moves as well
 end
 function Base.show(io::IO, e::Entity)
 	print(io, "[$(e.name), $(e.speed) speed]")
@@ -21,5 +22,6 @@ end
 
 include("states.jl")
 include("strategies.jl")
+include("battles.jl")
 
 end

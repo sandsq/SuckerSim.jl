@@ -2,7 +2,9 @@ using Random
 const DEFAULT_RNG = Xoshiro(6)
 export
 	AbstractStrategy,
-	RandomChoiceStrategy,
+	AbstractRandomStrategy,
+	RandomPreemptiveChoiceStrategy,
+	RandomRegularChoiceStrategy,
 	pick_action,
 	AbstractSendStrategy,
 	SendPreemptiveStrategy,
@@ -31,14 +33,23 @@ end
 Representation of attacking strategy
 """
 abstract type AbstractStrategy end
-pick_action(rng::AbstractRNG, s::AbstractStrategy, b::AbstractBattleState, attacker::AbstractEntity, moves::Vector{T}) where T <: AbstractMove = throw(ErrorException("pick_action not implemented for strategy of type $(typeof(s))."))
-pick_action(s::AbstractStrategy, b::AbstractBattleState, attacker::AbstractEntity, moves::Vector{T}) where T <: AbstractMove = pick_action(DEFAULT_RNG, s, b, attacker, moves)
+pick_action(rng::AbstractRNG, s::AbstractStrategy, b::AbstractBattleState, attacker::AbstractEntity) = throw(ErrorException("pick_action not implemented for strategy of type $(typeof(s))."))
+pick_action(s::AbstractStrategy, b::AbstractBattleState, attacker::AbstractEntity) = pick_action(DEFAULT_RNG, s, b, attacker)
 
-struct RandomChoiceStrategy <: AbstractStrategy end
+abstract type AbstractRandomStrategy <: AbstractStrategy end
+struct RandomPreemptiveChoiceStrategy <: AbstractRandomStrategy end
+struct RandomRegularChoiceStrategy <: AbstractRandomStrategy end
 
-function pick_action(::AbstractRNG, ::RandomChoiceStrategy, 
-	battle_state::AbstractBattleState, attacker::AbstractEntity, 
-	moves::Vector{T}) where T <: AbstractMove
+function pick_action(::AbstractRNG, strat::AbstractRandomStrategy, 
+	battle_state::AbstractBattleState, attacker::AbstractEntity)
+	moves = 
+	if typeof(strat) == RandomPreemptiveChoiceStrategy
+		[preemptive_attack, regular_attack]
+	elseif typeof(strat) == RandomChoiceStrategy
+		[regular_attack, status_move]
+	else
+		throw(ErrorException("$(typeof(strat)) not a valid random strategy"))
+	end
 	defender = identify_defender(battle_state, attacker)
 	
 	roll = rand(1:length(moves))
@@ -46,10 +57,9 @@ function pick_action(::AbstractRNG, ::RandomChoiceStrategy,
 	Action(attacker, defender, selected_move)
 end
 
-function pick_action(::RandomChoiceStrategy, 
-	battle_state::AbstractBattleState, attacker::AbstractEntity, 
-	moves::Vector{T}) where T <: AbstractMove
-	pick_action(DEFAULT_RNG, RandomChoiceStrategy(), battle_state, attacker, moves)
+function pick_action(strat::AbstractRandomStrategy, 
+	battle_state::AbstractBattleState, attacker::AbstractEntity)
+	pick_action(DEFAULT_RNG, strat, battle_state, attacker)
 end
 
 abstract type AbstractSendStrategy <: AbstractStrategy end
@@ -58,8 +68,7 @@ struct SendRegularStrategy <: AbstractSendStrategy end
 struct SendStatusStrategy <: AbstractSendStrategy end
 
 function pick_action(rng:: AbstractRNG, strat::S, 
-	battle_state::AbstractBattleState, attacker::AbstractEntity, 
-	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractSendStrategy}
+	battle_state::AbstractBattleState, attacker::AbstractEntity) where {S <: AbstractSendStrategy}
 	defender = identify_defender(battle_state, attacker)
 	if typeof(strat) == SendPreemptiveStrategy
 		Action(attacker, defender, preemptive_attack)
@@ -74,9 +83,8 @@ function pick_action(rng:: AbstractRNG, strat::S,
 end
 
 function pick_action(strat::S, 
-	battle_state::AbstractBattleState, attacker::AbstractEntity, 
-	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractSendStrategy}
-	pick_action(DEFAULT_RNG, strat, battle_state, attacker, moves)
+	battle_state::AbstractBattleState, attacker::AbstractEntity) where {S <: AbstractSendStrategy}
+	pick_action(DEFAULT_RNG, strat, battle_state, attacker)
 end
 
 
@@ -102,45 +110,6 @@ The lower the PP of the preemptive attack, the more likely it will be used
 """
 struct PreemptiveMoreStrategy <: AbstractTacticalPreemptiveStrategy end
 
-function pick_action(rng:: AbstractRNG, strat::S, 
-	battle_state::AbstractBattleState, attacker::AbstractEntity, 
-	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractTacticalPreemptiveStrategy}
-	defender = identify_defender(battle_state, attacker)
-	# MAX_USES
-	uses_remaining = MAX_USES - _count_preemptive_uses(battle_state)
-	if uses_remaining <= 0
-		throw(ErrorException("$(uses_remaining) shouldn't be possible; the battle should have a victor when there are 0 remaining uses"))
-	end
-	
-	if typeof(strat) == PreemptiveLessStrategy
-		random_roll = rand(1:MAX_USES)
-		if random_roll <= uses_remaining
-			Action(attacker, defender, preemptive_attack)
-		else
-			Action(attacker, defender, regular_attack)
-		end
-	elseif typeof(strat) == PreemptiveMoreStrategy
-		# use this janky spread so that when there is 1 use remaining, it is not guaranteed to be used
-		# means if there are 7 uses remaining, the chance is the same as 8 uses remaining
-		random_roll = rand(0:8/7:8)
-		if random_roll >= uses_remaining
-			Action(attacker, defender, preemptive_attack)
-		else
-			Action(attacker, defender, regular_attack)
-		end
-	else
-		throw(ErrorException("$(typeof(strat)) is not a valid preemptive tactical strat"))
-	end
-	
-end
-
-function pick_action(strat::S, 
-	battle_state::AbstractBattleState, attacker::AbstractEntity, 
-	moves::Vector{T}) where {T <: AbstractMove, S <: AbstractTacticalPreemptiveStrategy}
-	pick_action(DEFAULT_RNG, strat, battle_state, attacker, moves)
-end
-
-
 
 abstract type AbstractTacticalStatusStrategy <: AbstractStrategy end
 """
@@ -153,3 +122,56 @@ struct StatusLessStrategy <: AbstractTacticalStatusStrategy end
 The lower the PP of the opponent's preemptive attack, the more likely a status move will be used
 """
 struct StatusMoreStrategy <: AbstractTacticalStatusStrategy end
+
+
+function pick_action(rng:: AbstractRNG, strat::S, 
+	battle_state::AbstractBattleState, attacker::AbstractEntity) where {S <: Union{AbstractTacticalPreemptiveStrategy, AbstractTacticalStatusStrategy}}
+	move_to_use = 
+	if S <: AbstractTacticalPreemptiveStrategy
+		preemptive_attack
+	elseif S <: AbstractTacticalStatusStrategy
+		status_move
+	else
+		throw(ErrorException("$S is not a valid tactical strategy"))
+	end
+
+	
+
+	defender = identify_defender(battle_state, attacker)
+	# MAX_USES
+	uses_remaining = MAX_USES - _count_preemptive_uses(battle_state)
+	if uses_remaining <= 0
+		throw(ErrorException("$(uses_remaining) shouldn't be possible; the battle should have a victor when there are 0 remaining uses"))
+	end
+	
+	if typeof(strat) == PreemptiveLessStrategy || typeof(strat) == StatusLessStrategy
+		random_roll = rand(1:MAX_USES)
+		if random_roll <= uses_remaining
+			Action(attacker, defender, move_to_use)
+		else
+			Action(attacker, defender, regular_attack)
+		end
+	elseif typeof(strat) == PreemptiveMoreStrategy || typeof(strat) == StatusMoreStrategy
+		# use this janky spread so that when there is 1 use remaining, it is not guaranteed to be used
+		# means if there are 7 uses remaining, the chance is the same as 8 uses remaining
+		random_roll = rand(0:8/7:8)
+		if random_roll >= uses_remaining
+			
+			Action(attacker, defender, move_to_use)
+		else
+			Action(attacker, defender, regular_attack)
+		end
+	else
+		throw(ErrorException("$(typeof(strat)) is not a valid tactical strat"))
+	end
+	
+end
+
+function pick_action(strat::S, 
+	battle_state::AbstractBattleState, attacker::AbstractEntity) where {S <: Union{AbstractTacticalPreemptiveStrategy, AbstractTacticalStatusStrategy}}
+	pick_action(DEFAULT_RNG, strat, battle_state, attacker)
+end
+
+
+
+

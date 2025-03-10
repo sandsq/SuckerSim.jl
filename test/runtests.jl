@@ -135,13 +135,13 @@ end
 
 @testset "strategies" begin
     @testset "random strategy" begin
-        strat = RandomChoiceStrategy()
+        strat = RandomPreemptiveChoiceStrategy()
         b = BattleState(kingambit, kyurem, [])
         pre_count = 0
         reg_count = 0
         total_trials = 1000
         for i in 1:total_trials
-            a = pick_action(strat, b, kingambit, [preemptive_attack, regular_attack])
+            a = pick_action(strat, b, kingambit)
             if a == Action(kingambit, kyurem, preemptive_attack)
                 pre_count += 1
             else
@@ -157,40 +157,56 @@ end
     @testset "full send strats" begin
         pstrat = SendPreemptiveStrategy()
         b = BattleState(kingambit, kyurem, [])
-        @test pick_action(pstrat, b, kingambit, [preemptive_attack]) == Action(kingambit, kyurem, preemptive_attack)
+        @test pick_action(pstrat, b, kingambit) == Action(kingambit, kyurem, preemptive_attack)
 
         rstrat = SendRegularStrategy()
-        @test pick_action(rstrat, b, kyurem, [regular_attack]) == Action(kyurem, kingambit, regular_attack)
+        @test pick_action(rstrat, b, kyurem) == Action(kyurem, kingambit, regular_attack)
 
         sstrat = SendStatusStrategy()
-        @test pick_action(sstrat, b, kyurem, [status_move]) == Action(kyurem, kingambit, status_move)
+        @test pick_action(sstrat, b, kyurem) == Action(kyurem, kingambit, status_move)
     end
 
     @testset "preemptive attack depending on PP remaining" begin
         lstrat = PreemptiveLessStrategy()
+        lstrat2 = StatusLessStrategy()
         a1 = Action(kingambit, kyurem, preemptive_attack)
         a2 = Action(kyurem, kingambit, status_move)
         t = TurnState([a1, a2])
         b = BattleState(kingambit, kyurem, [t for i in 1:7])
         total_trials = 10000
         c = 0
+        c2 = 0
         for i in 1:total_trials
-            option_picked = pick_action(lstrat, b, kingambit, [preemptive_attack])
+            option_picked = pick_action(lstrat, b, kingambit)
             if option_picked == Action(kingambit, kyurem, preemptive_attack)
                 c += 1
+            end
+
+            option_picked2 = pick_action(lstrat2, b, kyurem)
+            if option_picked2 == Action(kyurem, kingambit, status_move)
+                c2 += 1
             end
         end
         @test 0.9 / 8 * total_trials <= c <= 1.1 / 8 * total_trials
+        @test 0.9 / 8 * total_trials <= c2 <= 1.1 / 8 * total_trials
 	    
         mstrat = PreemptiveMoreStrategy()
+        mstrat2 = StatusMoreStrategy()
         c = 0
+        c2 = 0
         for i in 1:total_trials
-            option_picked = pick_action(mstrat, BattleState(b.participant1, b.participant2, b.turns[1:6]), kingambit, [preemptive_attack])
+            option_picked = pick_action(mstrat, BattleState(b.participant1, b.participant2, b.turns[1:6]), kingambit)
             if option_picked == Action(kingambit, kyurem, preemptive_attack)
                 c += 1
             end
+
+            option_picked2 = pick_action(mstrat2, BattleState(b.participant1, b.participant2, b.turns[1:6]), kyurem)
+            if option_picked2 == Action(kyurem, kingambit, status_move)
+                c2 += 1
+            end
         end
         @test 5.9 / 8 * total_trials <= c <= 6.1 / 8 * total_trials
+        @test 5.9 / 8 * total_trials <= c2 <= 6.1 / 8 * total_trials
     end
 
 end
