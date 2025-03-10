@@ -87,7 +87,7 @@ Return the victor and the turn of the victory
 """
 function get_victor(b::AbstractBattleState)
 	victor_tracker = (nothing, -1)
-	preemptive_exchange_winner = Entity("", -1)
+	preemptive_exchange_winner = Entity("", -1, r_attacker)
 	preemptive_counter = MAX_USES
 
 	for (tind, turn) in enumerate(b.turns)
