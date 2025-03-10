@@ -108,14 +108,21 @@ function pick_action(rng:: AbstractRNG, strat::S,
 	defender = identify_defender(battle_state, attacker)
 	# MAX_USES
 	uses_remaining = MAX_USES - _count_preemptive_uses(battle_state)
-	random_roll = rand(1:MAX_USES)
+	if uses_remaining <= 0
+		throw(ErrorException("$(uses_remaining) shouldn't be possible; the battle should have a victor when there are 0 remaining uses"))
+	end
+	
 	if typeof(strat) == PreemptiveLessStrategy
+		random_roll = rand(1:MAX_USES)
 		if random_roll <= uses_remaining
 			Action(attacker, defender, preemptive_attack)
 		else
 			Action(attacker, defender, regular_attack)
 		end
 	elseif typeof(strat) == PreemptiveMoreStrategy
+		# use this janky spread so that when there is 1 use remaining, it is not guaranteed to be used
+		# means if there are 7 uses remaining, the chance is the same as 8 uses remaining
+		random_roll = rand(0:8/7:8)
 		if random_roll >= uses_remaining
 			Action(attacker, defender, preemptive_attack)
 		else

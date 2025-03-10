@@ -167,7 +167,6 @@ end
     end
 
     @testset "preemptive attack depending on PP remaining" begin
-        
         lstrat = PreemptiveLessStrategy()
         a1 = Action(kingambit, kyurem, preemptive_attack)
         a2 = Action(kyurem, kingambit, status_move)
@@ -182,7 +181,16 @@ end
             end
         end
         @test 0.9 / 8 * total_trials <= c <= 1.1 / 8 * total_trials
-	    # PreemptiveMoreStrategy
+	    
+        mstrat = PreemptiveMoreStrategy()
+        c = 0
+        for i in 1:total_trials
+            option_picked = pick_action(mstrat, BattleState(b.participant1, b.participant2, b.turns[1:6]), kingambit, [preemptive_attack])
+            if option_picked == Action(kingambit, kyurem, preemptive_attack)
+                c += 1
+            end
+        end
+        @test 5.9 / 8 * total_trials <= c <= 6.1 / 8 * total_trials
     end
 
 end
