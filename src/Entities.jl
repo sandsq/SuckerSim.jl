@@ -6,6 +6,8 @@ export
 	p_attacker,
 	RegularAttacker,
 	r_attacker,
+	StatusAttacker,
+	s_attacker,
 	AbstractEntity,
 	Entity
 
@@ -15,6 +17,8 @@ struct PreemptiveAttacker <: AbstractRole end
 p_attacker = PreemptiveAttacker()
 struct RegularAttacker <: AbstractRole end
 r_attacker = RegularAttacker()
+struct StatusAttacker <: AbstractRole end
+s_attacker = StatusAttacker()
 
 """
 	AbstractEntity
