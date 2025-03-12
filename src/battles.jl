@@ -1,4 +1,5 @@
-
+export
+	execute_battle
 
 function execute_battle(participant1::Entity, strategy1::AbstractStrategy, participant2::Entity, strategy2::AbstractStrategy)
 	battle_state = BattleState(participant1, participant2, [])
@@ -14,4 +15,5 @@ function execute_battle(participant1::Entity, strategy1::AbstractStrategy, parti
 		end
 		fallback_count += 1
 	end
+	return get_victor(battle_state)[1], battle_state
 end

@@ -105,7 +105,8 @@ function pick_action(rng:: AbstractRNG, strat::AbstractSmartStrategy,
 	end
 	
 	if typeof(strat) == LessLikeyStrategy
-		random_roll = rand(1:MAX_USES)
+		# use this janky spread so that when full PP use is not guaranteed
+		random_roll = rand(1:8/7:9)
 		if random_roll <= uses_remaining
 			Action(attacker, defender, move_to_use)
 		else

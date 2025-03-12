@@ -4,7 +4,7 @@ using Test
 using Logging
 using Random
 debuglogger = ConsoleLogger(stderr, Logging.Debug)
-Base.global_logger(debuglogger)
+# Base.global_logger(debuglogger)
 
 kingambit = Entity("Kingambit", 50, p_attacker)
 kyurem = Entity("Kyurem", 95, r_attacker)
@@ -208,3 +208,5 @@ end
     end
 
 end
+
+include("battles.jl")
