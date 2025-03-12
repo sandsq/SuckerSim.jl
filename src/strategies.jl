@@ -34,6 +34,11 @@ abstract type AbstractStrategy end
 struct RandomStrategy <: AbstractStrategy end
 struct SendStrategy <: AbstractStrategy end
 abstract type AbstractSmartStrategy <: AbstractStrategy end
+"""
+	LessLikelyStrategy
+For the preemptive attacker, it is less likely to use a preemptive attack the fewer uses it has remaining
+For the regular attacker, it is less likely to use a status move the fewer uses the preemptive attack has remaining (ie trying to pp stall)
+"""
 struct LessLikeyStrategy <: AbstractSmartStrategy end
 struct MoreLikelyStrategy <: AbstractSmartStrategy end
 
@@ -106,7 +111,8 @@ function pick_action(rng:: AbstractRNG, strat::AbstractSmartStrategy,
 	
 	if typeof(strat) == LessLikeyStrategy
 		# use this janky spread so that when full PP use is not guaranteed
-		random_roll = rand(1:8/7:9)
+		# random_roll = rand(1:MAX_USES/(MAX_USES - 1):(MAX_USES + 1))
+		random_roll = rand(1:MAX_USES)
 		if random_roll <= uses_remaining
 			Action(attacker, defender, move_to_use)
 		else
@@ -115,7 +121,7 @@ function pick_action(rng:: AbstractRNG, strat::AbstractSmartStrategy,
 	elseif typeof(strat) == MoreLikelyStrategy
 		# use this janky spread so that when there is 1 use remaining, it is not guaranteed to be used
 		# means if there are 7 uses remaining, the chance is the same as 8 uses remaining
-		random_roll = rand(0:8/7:8)
+		random_roll = rand(0:MAX_USES/(MAX_USES - 1):MAX_USES)
 		if random_roll >= uses_remaining
 			Action(attacker, defender, move_to_use)
 		else
