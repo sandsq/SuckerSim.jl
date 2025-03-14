@@ -6,6 +6,7 @@ export
 	RandomStrategy,
 	SendStrategy,
 	AbstractSmartStrategy,
+	SmartStrategy,
 	LessLikeyStrategy,
 	MoreLikelyStrategy
 
@@ -32,15 +33,7 @@ end
 
 abstract type AbstractStrategy end
 struct RandomStrategy <: AbstractStrategy end
-struct SendStrategy <: AbstractStrategy end
-abstract type AbstractSmartStrategy <: AbstractStrategy end
-"""
-	LessLikelyStrategy
-For the preemptive attacker, it is less likely to use a preemptive attack the fewer uses it has remaining
-For the regular attacker, it is less likely to use a status move the fewer uses the preemptive attack has remaining (ie trying to pp stall)
-"""
-struct LessLikeyStrategy <: AbstractSmartStrategy end
-struct MoreLikelyStrategy <: AbstractSmartStrategy end
+
 
 pick_action(rng::AbstractRNG, s::AbstractStrategy, b::AbstractBattleState, attacker::AbstractEntity) = throw(ErrorException("pick_action not implemented for strategy of type $(typeof(s))."))
 
@@ -68,6 +61,7 @@ function pick_action(strat::RandomStrategy,
 	pick_action(DEFAULT_RNG, strat, battle_state, attacker)
 end
 
+struct SendStrategy <: AbstractStrategy end
 
 
 function pick_action(rng:: AbstractRNG, strat::SendStrategy, 
@@ -91,8 +85,17 @@ function pick_action(strat::SendStrategy,
 end
 
 
-function pick_action(rng:: AbstractRNG, strat::AbstractSmartStrategy, 
-	battle_state::AbstractBattleState, attacker::Entity{R}) where R <: AbstractRole
+abstract type AbstractSmartStrategy <: AbstractStrategy end
+"""
+	LessLikelyStrategy
+For the preemptive attacker, it is less likely to use a preemptive attack the fewer uses it has remaining
+For the regular attacker, it is less likely to use a status move the fewer uses the preemptive attack has remaining (ie trying to pp stall)
+"""
+struct LessLikeyStrategy <: AbstractSmartStrategy end
+struct MoreLikelyStrategy <: AbstractSmartStrategy end
+
+
+function pick_action(rng:: AbstractRNG, strat::Union{LessLikeyStrategy, MoreLikelyStrategy}, battle_state::AbstractBattleState, attacker::Entity{R}) where R <: AbstractRole
 	move_to_use = 
 	if R == PreemptiveAttacker
 		preemptive_attack
@@ -133,11 +136,60 @@ function pick_action(rng:: AbstractRNG, strat::AbstractSmartStrategy,
 	
 end
 
-function pick_action(strat::AbstractSmartStrategy, 
+function pick_action(strat::Union{LessLikeyStrategy, MoreLikelyStrategy}, 
 	battle_state::AbstractBattleState, attacker::Entity{R}) where R <: AbstractRole
 	pick_action(DEFAULT_RNG, strat, battle_state, attacker)
 end
 
 
+struct SmartStrategy <: AbstractSmartStrategy
+	name::String
+	probability_of_nth::Vector{Function}
+	function SmartStrategy(name::String, probability_of_nth::Vector{Function})
+		if length(probability_of_nth) != MAX_USES
+			throw(ErrorException("You need as many functions as there are uses of preemptive attack ($(MAX_USES))"))
+		end
+		for (n, f) in enumerate(probability_of_nth)
+			if hasmethod(f, (BattleState, )) == false
+				throw(ErrorException("Your $(n)th probability determination function needs to take a BattleState as an argument"))
+			end
+		end
+		return new(name, probability_of_nth)
+	end
+end
 
 
+function pick_action(rng:: AbstractRNG, strat::SmartStrategy, 
+	battle_state::AbstractBattleState, attacker::Entity{R}) where R <: AbstractRole
+	move_to_use = 
+	if R == PreemptiveAttacker
+		preemptive_attack
+	elseif R == RegularAttacker || R == StatusAttacker
+		status_move
+	else
+		throw(ErrorException("$R is not a valid role"))
+	end
+
+	defender = identify_defender(battle_state, attacker)
+
+	num_preemptive_uses = _count_preemptive_uses(battle_state)
+	prob_func = strat.probability_of_nth[num_preemptive_uses + 1]
+
+	uses_remaining = MAX_USES - num_preemptive_uses
+	if uses_remaining <= 0
+		throw(ErrorException("$(uses_remaining) shouldn't be possible; the battle should have a victor when there are 0 remaining uses"))
+	end
+	
+	prob_of_use = prob_func(battle_state)
+	if rand() <= prob_of_use
+		Action(attacker, defender, move_to_use)
+	else
+		Action(attacker, defender, regular_attack)
+	end
+end
+
+
+function pick_action(strat::SmartStrategy, 
+	battle_state::AbstractBattleState, attacker::Entity{R}) where R <: AbstractRole
+	pick_action(DEFAULT_RNG, strat, battle_state, attacker)
+end
