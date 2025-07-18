@@ -7,7 +7,7 @@ export
 	RegularAttacker,
 	r_attacker,
 	StatusAttacker,
-	s_attacker,
+	s_attacker,d
 	AbstractEntity,
 	Entity
 
